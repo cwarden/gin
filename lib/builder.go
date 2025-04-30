@@ -15,15 +15,17 @@ type Builder interface {
 }
 
 type builder struct {
-	dir       string
-	binary    string
-	errors    string
-	useGodep  bool
-	wd        string
-	buildArgs []string
+	dir         string
+	binary      string
+	errors      string
+	useGodep    bool
+	wd          string
+	preBuildCmd string
+	buildArgs   []string
 }
 
-func NewBuilder(dir string, bin string, useGodep bool, wd string, buildArgs []string) Builder {
+// NewBuilder creates a new Builder. preBuildCmd is the command to run before building (empty means skip pre-build step).
+func NewBuilder(dir string, bin string, useGodep bool, wd string, buildArgs []string, preBuildCmd string) Builder {
 	if len(bin) == 0 {
 		bin = "bin"
 	}
@@ -35,7 +37,8 @@ func NewBuilder(dir string, bin string, useGodep bool, wd string, buildArgs []st
 		}
 	}
 
-	return &builder{dir: dir, binary: bin, useGodep: useGodep, wd: wd, buildArgs: buildArgs}
+	preBuildCmd = strings.TrimSpace(preBuildCmd)
+	return &builder{dir: dir, binary: bin, useGodep: useGodep, wd: wd, preBuildCmd: preBuildCmd, buildArgs: buildArgs}
 }
 
 func (b *builder) Binary() string {
@@ -47,27 +50,40 @@ func (b *builder) Errors() string {
 }
 
 func (b *builder) Build() error {
-	args := append([]string{"go", "build", "-o", filepath.Join(b.wd, b.binary)}, b.buildArgs...)
+	// Pre-build step: run the specified command and propagate errors
+	if b.preBuildCmd != "" {
+		var preCmd *exec.Cmd
+		if runtime.GOOS == "windows" {
+			preCmd = exec.Command("cmd.exe", "/C", b.preBuildCmd)
+		} else {
+			preCmd = exec.Command("sh", "-c", b.preBuildCmd)
+		}
+		preCmd.Dir = b.dir
+		preOut, preErr := preCmd.CombinedOutput()
+		if len(preOut) > 0 {
+			fmt.Printf("%s", preOut)
+		}
+		if preErr != nil {
+			b.errors = string(preOut)
+			return fmt.Errorf(b.errors)
+		}
+	}
 
-	var command *exec.Cmd
+	// Build step
+	args := append([]string{"go", "build", "-o", filepath.Join(b.wd, b.binary)}, b.buildArgs...)
 	if b.useGodep {
 		args = append([]string{"godep"}, args...)
 	}
-	command = exec.Command(args[0], args[1:]...)
-
-	command.Dir = b.dir
-
-	output, err := command.CombinedOutput()
-
-	if command.ProcessState.Success() {
+	cmd := exec.Command(args[0], args[1:]...)
+	cmd.Dir = b.dir
+	output, err := cmd.CombinedOutput()
+	if cmd.ProcessState.Success() {
 		b.errors = ""
 	} else {
 		b.errors = string(output)
 	}
-
 	if len(b.errors) > 0 {
 		return fmt.Errorf(b.errors)
 	}
-
 	return err
 }

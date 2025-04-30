@@ -4,8 +4,8 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/codegangsta/envy/lib"
-	"github.com/codegangsta/gin/lib"
+	envy "github.com/codegangsta/envy/lib"
+	gin "github.com/codegangsta/gin/lib"
 	shellwords "github.com/mattn/go-shellwords"
 	"github.com/urfave/cli"
 
@@ -68,6 +68,12 @@ func main() {
 			Value:  ".",
 			EnvVar: "GIN_PATH",
 			Usage:  "Path to watch files from",
+		},
+		cli.StringFlag{
+			Name:   "pre-build,m",
+			Value:  "",
+			EnvVar: "GIN_PREBUILD",
+			Usage:  "Command to run before `go build`",
 		},
 		cli.StringFlag{
 			Name:   "build,d",
@@ -170,12 +176,14 @@ func MainAction(c *cli.Context) {
 	if err != nil {
 		logger.Fatal(err)
 	}
+	preBuild := c.GlobalString("pre-build")
 
 	buildPath := c.GlobalString("build")
 	if buildPath == "" {
 		buildPath = c.GlobalString("path")
 	}
-	builder := gin.NewBuilder(buildPath, c.GlobalString("bin"), c.GlobalBool("godep"), wd, buildArgs)
+	// preBuild is the command to run before go build (empty means skip pre-build)
+	builder := gin.NewBuilder(buildPath, c.GlobalString("bin"), c.GlobalBool("godep"), wd, buildArgs, preBuild)
 	runner := gin.NewRunner(filepath.Join(wd, builder.Binary()), c.Args()...)
 	runner.SetWriter(os.Stdout)
 	proxy := gin.NewProxy(builder, runner)

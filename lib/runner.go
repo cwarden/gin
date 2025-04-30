@@ -97,29 +97,15 @@ func (r *runner) Exited() bool {
 
 func (r *runner) runBin() error {
 	r.command = exec.Command(r.bin, r.args...)
-	stdout, err := r.command.StdoutPipe()
-	if err != nil {
+	// Attach the output to the configured writer
+	r.command.Stdout = r.writer
+	r.command.Stderr = r.writer
+	// Start the command
+	if err := r.command.Start(); err != nil {
 		return err
 	}
-	stderr, err := r.command.StderrPipe()
-	if err != nil {
-		return err
-	}
-
-	err = r.command.Start()
-	if err != nil {
-		return err
-	}
-
+	// Record the start time for refresh logic
 	r.starttime = time.Now()
-
-	go io.Copy(r.writer, stdout)
-	go io.Copy(r.writer, stderr)
-	go func() {
-		r.command.Wait()
-		stdout.Close()
-		stderr.Close()
-	}()
 	return nil
 }
 
