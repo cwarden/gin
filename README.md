@@ -1,5 +1,7 @@
-gin [![wercker status](https://app.wercker.com/status/f413ccbd85cfc4a58a37f03dd7aaa87e "wercker status")](https://app.wercker.com/project/bykey/f413ccbd85cfc4a58a37f03dd7aaa87e)
+gin
 ========
+
+Forked from https://github.com/codegangsta/gin
 
 `gin` is a simple command line utility for live-reloading Go web applications.
 Just run `gin` in your app directory and your web app will be served with
@@ -16,7 +18,7 @@ Assuming you have a working Go environment and `GOPATH/bin` is in your
 `PATH`, `gin` is a breeze to install:
 
 ```shell
-go install github.com/codegangsta/gin@latest
+go install github.com/cwarden/gin@latest
 ```
 
 Then verify that `gin` was installed correctly:
@@ -35,6 +37,7 @@ Options
    --appPort value, -a value     port for the Go web server (default: 3001)
    --bin value, -b value         name of generated binary file (default: "gin-bin")
    --path value, -t value        Path to watch files from (default: ".")
+   --pre-build value, -m value   Command to run before `go build`
    --build value, -d value       Path to build files from (defaults to same value as --path)
    --excludeDir value, -x value  Relative directories to exclude
    --immediate, -i               run the server immediately after it's built
@@ -47,6 +50,20 @@ Options
    --notifications               enable desktop notifications
    --help, -h                    show help
    --version, -v                 print the version
+```
+
+## Pre-build Commands
+The `--pre-build` flag allows you to run commands before each build. This is useful for 
+generating assets, running code generators, or building dependencies.
+
+Example using Make to build WebAssembly before the main Go application:
+```shell
+gin --pre-build "make web/static/app.wasm" run main.go
+```
+
+You can also use it for asset generation:
+```shell
+gin --pre-build "npm run build" run main.go
 ```
 
 ## Supporting Gin in Your Web app
