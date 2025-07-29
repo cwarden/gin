@@ -152,7 +152,7 @@ func MainAction(c *cli.Context) {
 	laddr := c.GlobalString("laddr")
 	port := c.GlobalInt("port")
 	all := c.GlobalBool("all")
-	appPort := strconv.Itoa(c.GlobalInt("appPort"))
+	appPort := c.GlobalInt("appPort")
 	immediate = c.GlobalBool("immediate")
 	keyFile := c.GlobalString("keyFile")
 	certFile := c.GlobalString("certFile")
@@ -164,8 +164,19 @@ func MainAction(c *cli.Context) {
 	// Bootstrap the environment
 	envy.Bootstrap()
 
+	// Find available ports if the defaults are in use
+	availablePort, availableAppPort := gin.FindAvailablePorts(port, appPort)
+	if availablePort == -1 || availableAppPort == -1 {
+		logger.Fatal("Unable to find available ports")
+	}
+	if availablePort != port || availableAppPort != appPort {
+		logger.Printf("Default ports in use. Using port %d for proxy and %d for app\n", availablePort, availableAppPort)
+		port = availablePort
+		appPort = availableAppPort
+	}
+
 	// Set the PORT env
-	os.Setenv("PORT", appPort)
+	os.Setenv("PORT", strconv.Itoa(appPort))
 
 	wd, err := os.Getwd()
 	if err != nil {
@@ -191,7 +202,7 @@ func MainAction(c *cli.Context) {
 	config := &gin.Config{
 		Laddr:    laddr,
 		Port:     port,
-		ProxyTo:  "http://localhost:" + appPort,
+		ProxyTo:  "http://localhost:" + strconv.Itoa(appPort),
 		KeyFile:  keyFile,
 		CertFile: certFile,
 	}
